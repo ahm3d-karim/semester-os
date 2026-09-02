@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://semester-os.lums.edu.pk/contract/course-model.v1.json",
+  "title": "Course Model v1",
+  "description": "The versioned data contract between the ingestion pipeline and the Semester OS app surface. Every extracted course model must conform to this schema.",
+  "type": "object",
+  "required": ["model_id", "course_id", "version", "created_at", "items", "budget", "status"],
+  "properties": {
+    "model_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique model version ID"
+    },
+    "course_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "FK to courses.id"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonically increasing version number per course. Supersedes previous model."
+    },
+    "supersedes_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "model_id of the previous version this one replaces, or null if first version"
+    },
+    "syllabus_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "FK to syllabi.id — which syllabus produced this model"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of model creation"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "verified", "approved", "superseded"],
+      "description": "draft = not yet verified; verified = checks passed, awaiting human; approved = human approved; superseded = replaced by newer version"
+    },
+    "items": {
+      "type": "array",
+      "description": "The extracted model items (deadlines, grades, policies, milestones, notes)",
+      "items": {
+        "$ref": "#/$defs/ModelItem"
+      }
+    },
+    "budget": {
+      "$ref": "#/$defs/GradeBudget",
+      "description": "Computed grade budget from grade_component items"
+    },
+    "verification_summary": {
+      "$ref": "#/$defs/VerificationSummary",
+      "description": "Aggregate verification scores across all items"
+    }
+  },
+  "$defs": {
+    "ModelItem": {
+      "type": "object",
+      "required": ["item_id", "kind", "title", "detail", "tier", "anchors", "verification", "approved"],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["deadline", "grade_component", "policy", "milestone", "note"],
+          "description": "deadline = date-bound deliverable (assignment, quiz, exam); grade_component = graded item with weight; policy = course rule (attendance, late penalty, etc.); milestone = non-graded date marker (midterm week, add/drop); note = general syllabus information"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Human-readable item title, e.g. 'Midterm Exam', 'Assignment 3', 'Attendance Policy'"
+        },
+        "detail": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Expanded description or policy text. For deadlines: scope/topics. For policies: full rule text."
+        },
+        "session_no": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 40,
+          "description": "LUMS session number (1-based) from the syllabus. Resolved to date via the sessions table at model-build time. null if not session-anchored."
+        },
+        "date": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "Resolved calendar date (YYYY-MM-DD) after model build. null during extract stage; resolved in step 5."
+        },
+        "session_range": {
+          "type": ["object", "null"],
+          "description": "For items spanning multiple sessions (e.g. 'Sessions 10-12')",
+          "properties": {
+            "start": { "type": "integer", "minimum": 1 },
+            "end": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "weight": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage weight for grade_components. null for non-grade items. All grade_component weights must sum to 100 (or be flagged)."
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["sourced", "synthesized"],
+          "description": "sourced = directly quoted/copied from syllabus text; synthesized = inferred by LLM from multiple syllabus passages. sourced items are higher confidence."
+        },
+        "anchors": {
+          "type": "array",
+          "description": "Citations back to the source syllabus. Every item must have at least one anchor.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Anchor"
+          }
+        },
+        "verification": {
+          "$ref": "#/$defs/ItemVerification"
+        },
+        "approved": {
+          "type": "boolean",
+          "default": false,
+          "description": "Human approval status. Items are not included in briefings or budgets until approved."
+        },
+        "approved_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "approval_note": {
+          "type": ["string", "null"],
+          "maxLength": 500,
+          "description": "Optional user note from approval/edit/rejection"
+        }
+      }
+    },
+    "Anchor": {
+      "type": "object",
+      "required": ["source_text", "page"],
+      "properties": {
+        "source_text": {
+          "type": "string",
+          "description": "The exact text from the syllabus that this item was extracted from"
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Page number in the source PDF/docx"
+        },
+        "section": {
+          "type": ["string", "null"],
+          "description": "Section heading if identifiable, e.g. 'Grading', 'Schedule'"
+        },
+        "char_offset": {
+          "type": ["integer", "null"],
+          "description": "Character offset in the extracted markdown chunk"
+        }
+      }
+    },
+    "ItemVerification": {
+      "type": "object",
+      "required": ["score", "checks"],
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Aggregate confidence score (0-1). Items below 0.5 are auto-rejected."
+        },
+        "checks": {
+          "type": "object",
+          "required": ["anchor_exists", "number_match", "session_date_consistent", "llm_judge"],
+          "properties": {
+            "anchor_exists": {
+              "type": "boolean",
+              "description": "At least one anchor's source_text is found verbatim in the parsed syllabus"
+            },
+            "number_match": {
+              "type": "boolean",
+              "description": "If the item contains numbers (weights, scores, dates), they match the source text exactly"
+            },
+            "session_date_consistent": {
+              "type": "boolean",
+              "description": "If session_no is set, it maps to a valid date in the sessions table for this term"
+            },
+            "llm_judge": {
+              "type": "object",
+              "required": ["pass", "reason"],
+              "properties": {
+                "pass": { "type": "boolean" },
+                "reason": { "type": "string", "maxLength": 500 }
+              },
+              "description": "LLM round-trip check: does the item accurately represent the source?"
+            }
+          }
+        },
+        "auto_rejected": {
+          "type": "boolean",
+          "default": false,
+          "description": "true if score < 0.5 and item was auto-rejected without human review"
+        }
+      }
+    },
+    "GradeBudget": {
+      "type": "object",
+      "required": ["total_weight", "items_count", "status"],
+      "properties": {
+        "total_weight": {
+          "type": "number",
+          "description": "Sum of all grade_component weights. Should equal 100."
+        },
+        "items_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of grade_component items"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["balanced", "over", "under"],
+          "description": "balanced = sum is 100; over = sum > 100 (error); under = sum < 100 (missing components)"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["item_id", "title", "weight"],
+            "properties": {
+              "item_id": { "type": "string", "format": "uuid" },
+              "title": { "type": "string" },
+              "weight": { "type": "number" },
+              "scored": { "type": ["number", "null"], "description": "User-entered score (0-weight scale). null if not yet graded." },
+              "running_pct": { "type": ["number", "null"], "description": "Running percentage of graded portion" }
+            }
+          }
+        }
+      }
+    },
+    "VerificationSummary": {
+      "type": "object",
+      "required": ["total_items", "passed", "failed", "auto_rejected", "coverage_pct"],
+      "properties": {
+        "total_items": { "type": "integer" },
+        "passed": { "type": "integer", "description": "Items with score >= 0.5 and all deterministic checks passing" },
+        "failed": { "type": "integer", "description": "Items with score < 0.5 or deterministic check failure" },
+        "auto_rejected": { "type": "integer", "description": "Items auto-rejected (score < 0.5)" },
+        "coverage_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage of syllabus sections that produced at least one model item. Minimum threshold: 60%."
+        }
+      }
+    }
+  }
+}
