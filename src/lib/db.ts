@@ -3,6 +3,7 @@
 // DEMO_MODE=false → Supabase Postgres
 
 import { randomUUID } from 'node:crypto';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type {
   Course, Syllabus, IngestJob, ModelItem, CourseModel,
   GradeEntry, Briefing, Session, Institution, CalendarEvent,
@@ -85,10 +86,9 @@ if (DEMO && institutions.size === 0) {
 }
 
 // ─── Supabase client (lazy) ───
-let sb: any = null;
+let sb: SupabaseClient | null = null;
 function supabase() {
   if (!sb) {
-    const { createClient } = require('@supabase/supabase-js');
     sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
   }
   return sb;
@@ -222,7 +222,7 @@ export async function storeBriefing(input: { user_id: string; course_id?: string
   if (DEMO) {
     const b: Briefing = {
       id: randomUUID(), user_id: input.user_id, course_id: input.course_id ?? null,
-      kind: input.kind as any, content: input.content, delivered_via: (input.delivered_via as any) ?? null,
+      kind: input.kind as Briefing['kind'], content: input.content, delivered_via: (input.delivered_via as Briefing['delivered_via']) ?? null,
       delivered_at: new Date().toISOString(), created_at: new Date().toISOString(),
     };
     const list = briefings.get(input.course_id ?? '') ?? [];
@@ -238,7 +238,7 @@ export async function storeBriefing(input: { user_id: string; course_id?: string
 export async function createIngestJob(syllabusId: string, stage: string): Promise<IngestJob> {
   if (DEMO) {
     const j: IngestJob = {
-      id: randomUUID(), syllabus_id: syllabusId, stage: stage as any,
+      id: randomUUID(), syllabus_id: syllabusId, stage: stage as IngestJob['stage'],
       status: 'pending', log_json: {}, error: null,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };

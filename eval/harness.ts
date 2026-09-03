@@ -339,6 +339,10 @@ if (process.argv[1] && process.argv[1].endsWith('harness.ts')) {
   console.log(`Running eval on: ${fixturePath}`);
   console.log('---');
 
+  // CI gate thresholds (Phase 6: eval harness as verification gate)
+  const GATE_MIN_COVERAGE = 50;
+  const GATE_MIN_VERIFIED = 10;
+
   runEval(fixturePath)
     .then((result) => {
       console.log(JSON.stringify(result, null, 2));
@@ -349,6 +353,16 @@ if (process.argv[1] && process.argv[1].endsWith('harness.ts')) {
       console.log(`Average score: ${result.score_avg}`);
       console.log(`Sections found: ${result.sections_found.join(', ')}`);
       console.log(`By kind:`, result.details);
+      const coverageOk = result.coverage >= GATE_MIN_COVERAGE;
+      const verifiedOk = result.items_verified >= GATE_MIN_VERIFIED;
+      console.log('---');
+      console.log(`Gate: coverage >= ${GATE_MIN_COVERAGE}% -> ${coverageOk ? 'PASS' : 'FAIL'} (${result.coverage}%)`);
+      console.log(`Gate: verified >= ${GATE_MIN_VERIFIED}   -> ${verifiedOk ? 'PASS' : 'FAIL'} (${result.items_verified})`);
+      if (!coverageOk || !verifiedOk) {
+        console.error('EVAL GATE FAILED');
+        process.exit(1);
+      }
+      console.log('EVAL GATE PASSED');
     })
     .catch((err) => {
       console.error('Eval failed:', err);

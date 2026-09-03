@@ -1,5 +1,7 @@
 # Semester OS
 
+[![CI](https://github.com/ahm3d-karim/semester-os/actions/workflows/ci.yml/badge.svg)](https://github.com/ahm3d-karim/semester-os/actions/workflows/ci.yml)
+
 A LUMS-first syllabus copilot. Upload a syllabus, get verified course models, weekly briefings, and grade tracking.
 
 ## Quick Start

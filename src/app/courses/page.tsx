@@ -1,5 +1,6 @@
 import { listCourses } from '@/lib/db';
 import type { Course } from '@/lib/types';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,17 +14,17 @@ export default async function CoursesPage() {
           <h1 className="text-2xl font-bold">Courses</h1>
           <p className="text-gray-500 mt-1">{courses.length} active course{courses.length !== 1 ? 's' : ''}</p>
         </div>
-        <a
+        <Link
           href="/courses/new"
           className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
         >
           + Add Course
-        </a>
+        </Link>
       </div>
 
       <div className="grid gap-4">
         {courses.map((c) => (
-          <a
+          <Link
             key={c.id}
             href={`/courses/${c.id}`}
             className="block border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-sm transition-all"
@@ -38,7 +39,7 @@ export default async function CoursesPage() {
               </div>
               <span className="text-xs text-gray-400">{c.status}</span>
             </div>
-          </a>
+          </Link>
         ))}
         {courses.length === 0 && (
           <div className="text-center py-16 text-gray-400">

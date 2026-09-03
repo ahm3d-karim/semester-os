@@ -1,4 +1,5 @@
 import { listCourses, getModelItemsForBrief } from '@/lib/db';
+import type { ModelItem } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,7 @@ export default async function TodayPage() {
   const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Get items due in the next 7 days
-  const upcomingItems: { course: string; courseCode: string; item: any }[] = [];
+  const upcomingItems: { course: string; courseCode: string; item: ModelItem }[] = [];
   for (const c of courses) {
     const items = await getModelItemsForBrief(c.id, 7);
     for (const item of items) {
@@ -22,8 +23,8 @@ export default async function TodayPage() {
   const budgets: { course: string; courseCode: string; total: number; status: string }[] = [];
   for (const c of courses) {
     const items = await getModelItemsForBrief(c.id, 999);
-    const components = items.filter((i: any) => i.kind === 'grade_component' && i.approved);
-    const total = components.reduce((s: number, c: any) => s + (c.weight ?? 0), 0);
+    const components = items.filter((i: ModelItem) => i.kind === 'grade_component' && i.approved);
+    const total = components.reduce((s: number, c: ModelItem) => s + (c.weight ?? 0), 0);
     budgets.push({ course: c.title, courseCode: c.code, total, status: total === 100 ? 'balanced' : total > 100 ? 'over' : 'under' });
   }
 
