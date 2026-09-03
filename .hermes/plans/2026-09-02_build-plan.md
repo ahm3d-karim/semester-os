@@ -1,6 +1,7 @@
 # Semester OS — v1 Build Plan (LUMS-first)
 
-> **Status:** Approved shape (LUMS-first, own architecture, agent-powered backend). Execution by multi-agent batches with planner (Hermes) + verification gates + Discord pings.
+> **Status:** Phases 0–6 COMPLETE (builds green, CI green). Phase 7 deployed pending Vercel auth (repo public, CLI installed).
+> **Updated:** 2026-09-03 — v0.1 shipped to github.com/ahm3d-karim/semester-os; CI = lint + build + eval gate (harness thresholds: coverage ≥50%, verified ≥10). Deploy: `vercel link --yes && vercel --prod --yes` in DEMO_MODE (no env needed; DEMO falls back to true without SUPABASE_URL).
 > **Goal:** A LUMS-first syllabus copilot: upload a syllabus → verified course model (deadlines, grade weights, policies, Session-N→date mapping) → weekly briefings + 5-day warnings delivered to WhatsApp/in-app, with a grade-budget that updates as grades land.
 > **Architecture:** Thin Next.js 16 + Supabase + Vercel shell. All cognition lives in an agent-worker pipeline (ingest → parse → extract → verify → approve → model → brief). BYOK API keys per user. Local-first course-model JSON as the data contract.
 > **Tech Stack:** Next.js 16 (App Router, React 19, Tailwind v4), Supabase (Postgres + Auth + Storage), Vercel, OpenAI-compatible BYOK LLM, WhatsApp Cloud API (+ in-app fallback). TDD + eval harness from day 1.
