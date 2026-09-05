@@ -1,7 +1,7 @@
 // Semester OS — Verification step
 // Deterministic checks + LLM round-trip judge
 
-import { chatCompletion } from '@/lib/llm';
+import { chatCompletion, type LLMOverride } from '@/lib/llm';
 import type { ModelItem } from '@/lib/types';
 import type { ParsedSyllabus } from './parse';
 
@@ -18,7 +18,8 @@ export interface VerifyResult {
 
 export async function verifyItems(
   items: ModelItem[],
-  parsed: ParsedSyllabus
+  parsed: ParsedSyllabus,
+  llm?: LLMOverride
 ): Promise<VerifyResult> {
   const fullText = parsed.markdown.toLowerCase();
   const verified: ModelItem[] = [];
@@ -55,7 +56,7 @@ export async function verifyItems(
           role: 'user',
           content: `Source: "${anchorText}"\n\nItem: ${item.title} — ${item.detail}\n\nDoes this accurately represent the source?`,
         },
-      ], { temperature: 0, max_tokens: 200, response_format: { type: 'json_object' } });
+      ], { temperature: 0, max_tokens: 200, response_format: { type: 'json_object' }, llm });
 
       const judgeResult = JSON.parse(judgeRes.content);
       llmPass = judgeResult.pass === true;

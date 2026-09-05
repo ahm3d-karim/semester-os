@@ -1,9 +1,18 @@
 // Semester OS — BYOK LLM client
-// Calls any OpenAI-compatible API (DeepSeek, OpenAI, etc.)
+// Calls any OpenAI-compatible API (DeepSeek, OpenAI, custom).
+//
+// Key resolution order: per-call override (BYOK from the browser, demo mode)
+// → LLM_API_KEY env var. Throws a clear error when neither is set.
 
-const BASE_URL = process.env.LLM_BASE_URL || 'https://api.deepseek.com';
-const API_KEY = process.env.LLM_API_KEY || '';
-const MODEL = process.env.LLM_MODEL || 'deepseek-chat';
+const ENV_BASE_URL = process.env.LLM_BASE_URL || 'https://api.deepseek.com';
+const ENV_API_KEY = process.env.LLM_API_KEY || '';
+const ENV_MODEL = process.env.LLM_MODEL || 'deepseek-chat';
+
+export interface LLMOverride {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+}
 
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant';
@@ -15,22 +24,35 @@ export interface LLMResponse {
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
 }
 
+export interface LLMCallOptions {
+  temperature?: number;
+  max_tokens?: number;
+  response_format?: { type: 'json_object' };
+  llm?: LLMOverride;
+}
+
 export async function chatCompletion(
   messages: LLMMessage[],
-  options?: { temperature?: number; max_tokens?: number; response_format?: { type: 'json_object' } }
+  options?: LLMCallOptions
 ): Promise<LLMResponse> {
-  if (!API_KEY || API_KEY === 'sk-placeholder') {
-    throw new Error('LLM_API_KEY not configured. Set your BYOK key in Settings.');
+  const apiKey = options?.llm?.apiKey || ENV_API_KEY;
+  const baseUrl = options?.llm?.baseUrl || ENV_BASE_URL;
+  const model = options?.llm?.model || ENV_MODEL;
+
+  if (!apiKey || apiKey === '***') {
+    throw new Error(
+      'No LLM API key configured. Add your key in Settings (BYOK) — it stays in your browser and is sent only to your provider.'
+    );
   }
 
-  const res = await fetch(`${BASE_URL}/v1/chat/completions`, {
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       messages,
       temperature: options?.temperature ?? 0.1,
       max_tokens: options?.max_tokens ?? 4096,
@@ -40,7 +62,7 @@ export async function chatCompletion(
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`LLM API error ${res.status}: ${body}`);
+    throw new Error(`LLM API error ${res.status}: ${body.slice(0, 300)}`);
   }
 
   const data = await res.json();

@@ -19,11 +19,12 @@ export default async function TodayPage() {
   }
   upcomingItems.sort((a, b) => (a.item.date ?? '').localeCompare(b.item.date ?? ''));
 
-  // Get grade budgets
+  // Get grade budgets (only for courses with approved grade components)
   const budgets: { course: string; courseCode: string; total: number; status: string }[] = [];
   for (const c of courses) {
     const items = await getModelItemsForBrief(c.id, 999);
     const components = items.filter((i: ModelItem) => i.kind === 'grade_component' && i.approved);
+    if (components.length === 0) continue; // nothing verified yet — skip, don't show 0%
     const total = components.reduce((s: number, c: ModelItem) => s + (c.weight ?? 0), 0);
     budgets.push({ course: c.title, courseCode: c.code, total, status: total === 100 ? 'balanced' : total > 100 ? 'over' : 'under' });
   }
@@ -62,24 +63,30 @@ export default async function TodayPage() {
       {/* Grade Budgets */}
       <div className="border border-gray-200 rounded-xl p-5">
         <h2 className="text-lg font-semibold mb-3">Grade Budgets</h2>
-        <div className="space-y-3">
-          {budgets.map(({ course, courseCode, total, status }) => (
-            <div key={courseCode} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{courseCode}</span>
-                <span className="font-medium">{course}</span>
+        {budgets.length > 0 ? (
+          <div className="space-y-3">
+            {budgets.map(({ course, courseCode, total, status }) => (
+              <div key={courseCode} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{courseCode}</span>
+                  <span className="font-medium">{course}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-lg font-bold ${status === 'balanced' ? 'text-green-600' : status === 'over' ? 'text-red-600' : 'text-amber-600'}`}>
+                    {total}%
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${status === 'balanced' ? 'bg-green-100 text-green-700' : status === 'over' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {status}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-lg font-bold ${status === 'balanced' ? 'text-green-600' : status === 'over' ? 'text-red-600' : 'text-amber-600'}`}>
-                  {total}%
-                </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${status === 'balanced' ? 'bg-green-100 text-green-700' : status === 'over' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {status}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400 text-sm">
+            No grade budgets yet. Approve extracted grade components on a course&apos;s review page and they appear here.
+          </p>
+        )}
       </div>
     </div>
   );

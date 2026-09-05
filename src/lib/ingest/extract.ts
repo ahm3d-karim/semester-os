@@ -2,7 +2,7 @@
 // Takes parsed syllabus markdown → structured model_items via LLM
 
 import { randomUUID } from 'node:crypto';
-import { chatCompletion } from '@/lib/llm';
+import { chatCompletion, type LLMOverride } from '@/lib/llm';
 import { ExtractionResultSchema, type ExtractionResult } from './schema';
 import type { ParsedSyllabus } from './parse';
 import type { ModelItem } from '@/lib/types';
@@ -27,7 +27,8 @@ Return valid JSON matching the ExtractionResult schema.`;
 export async function extractItems(
   parsed: ParsedSyllabus,
   courseId: string,
-  modelVersion: number
+  modelVersion: number,
+  llm?: LLMOverride
 ): Promise<{ items: ModelItem[]; extraction: ExtractionResult }> {
   // Truncate if too long (LLM context limit)
   const maxChars = 12000;
@@ -45,6 +46,7 @@ export async function extractItems(
     temperature: 0.1,
     max_tokens: 4096,
     response_format: { type: 'json_object' },
+    llm,
   });
 
   // Parse and validate

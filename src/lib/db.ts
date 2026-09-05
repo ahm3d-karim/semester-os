@@ -1,6 +1,10 @@
 // Semester OS — DB-agnostic data layer
 // DEMO_MODE=true → in-memory Maps, zero external accounts
 // DEMO_MODE=false → Supabase Postgres
+//
+// v0.1.1: course content is EMPTY by default. Only app infrastructure is
+// seeded in demo mode: one institution (LUMS) + its Fall 2026 session
+// calendar. All courses/items/briefings are user-created.
 
 import { randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -11,28 +15,60 @@ import type {
 
 const DEMO = process.env.DEMO_MODE === 'true' || !process.env.SUPABASE_URL;
 
-// ─── In-memory stores (DEMO_MODE) ───
-const institutions = new Map<string, Institution>();
-const sessions = new Map<string, Session[]>();
-const calendarEvents = new Map<string, CalendarEvent[]>();
-const courses = new Map<string, Course>();
-const syllabi = new Map<string, Syllabus>();
-const ingestJobs = new Map<string, IngestJob>();
-const modelItems = new Map<string, ModelItem[]>();
-const courseModels = new Map<string, CourseModel[]>();
-const gradeEntries = new Map<string, GradeEntry[]>();
-const briefings = new Map<string, Briefing[]>();
+// Exported so UI can show a demo-mode banner (ephemeral in-memory state)
+export const IS_DEMO = DEMO;
 
-// ─── Seed demo data ───
-if (DEMO && institutions.size === 0) {
-  // Institution
+// ─── In-memory stores (DEMO_MODE) ───
+// Hang the maps off globalThis so Next.js dev HMR / route-module reloads
+// don't wipe state between requests. Does NOT survive serverless recycling —
+// the UI shows a demo-mode banner for exactly this reason.
+interface DemoStores {
+  institutions: Map<string, Institution>;
+  sessions: Map<string, Session[]>;
+  calendarEvents: Map<string, CalendarEvent[]>;
+  courses: Map<string, Course>;
+  syllabi: Map<string, Syllabus>;
+  ingestJobs: Map<string, IngestJob>;
+  modelItems: Map<string, ModelItem[]>;
+  courseModels: Map<string, CourseModel[]>;
+  gradeEntries: Map<string, GradeEntry[]>;
+  briefings: Map<string, Briefing[]>;
+}
+
+const g = globalThis as unknown as { __semesterOSStores?: DemoStores };
+
+function stores(): DemoStores {
+  if (!g.__semesterOSStores) {
+    g.__semesterOSStores = {
+      institutions: new Map(),
+      sessions: new Map(),
+      calendarEvents: new Map(),
+      courses: new Map(),
+      syllabi: new Map(),
+      ingestJobs: new Map(),
+      modelItems: new Map(),
+      courseModels: new Map(),
+      gradeEntries: new Map(),
+      briefings: new Map(),
+    };
+  }
+  return g.__semesterOSStores;
+}
+
+// ─── Infrastructure seed (institution + session calendar only) ───
+// NOT course content. Runs once per process; safe to call repeatedly.
+export async function ensureInstitution(): Promise<Institution> {
+  const s = stores();
+  const existing = Array.from(s.institutions.values())[0];
+  if (existing) return existing;
+
   const inst: Institution = {
     id: randomUUID(), code: 'LUMS', name: 'Lahore University of Management Sciences',
     calendar_url: 'https://lums.edu.pk/academic-calendar', created_at: new Date().toISOString(),
   };
-  institutions.set(inst.id, inst);
+  s.institutions.set(inst.id, inst);
 
-  // Sessions: Fall 2026 (weeks 1-16)
+  // Fall 2026 session calendar: 16 sessions, weekly, from Sep 1 2026
   const term = 'Fall 2026';
   const termSessions: Session[] = [];
   const startDate = new Date('2026-09-01'); // approximate
@@ -45,44 +81,16 @@ if (DEMO && institutions.size === 0) {
       date_end: new Date(d.getTime() + 6 * 86400000).toISOString().split('T')[0],
     });
   }
-  sessions.set(`${inst.id}:${term}`, termSessions);
+  s.sessions.set(`${inst.id}:${term}`, termSessions);
 
-  // Course
-  const course: Course = {
-    id: randomUUID(), inst_id: inst.id, code: 'FINN 372',
-    title: 'Actuarial Sciences & Insurance', offering: term,
-    status: 'active', created_at: new Date().toISOString(),
-  };
-  courses.set(course.id, course);
+  return inst;
+}
 
-  // Demo model items
-  const items: ModelItem[] = [
-    {
-      id: randomUUID(), course_id: course.id, model_version: 1,
-      kind: 'deadline', title: 'Assignment 1', detail: 'Insurance fundamentals problem set',
-      session_no: 4, date: '2026-09-22', session_range: null, weight: 10,
-      tier: 'sourced', anchors: [{ source_text: 'Assignment 1 due Session 4', page: 1, section: 'Schedule', char_offset: null }],
-      verification: { score: 0.9, checks: { anchor_exists: true, number_match: true, session_date_consistent: true, llm_judge: { pass: true, reason: 'Directly from syllabus' } }, auto_rejected: false },
-      approved: true, approved_at: new Date().toISOString(), approval_note: null, created_at: new Date().toISOString(),
-    },
-    {
-      id: randomUUID(), course_id: course.id, model_version: 1,
-      kind: 'grade_component', title: 'Midterm Exam', detail: 'Covers sessions 1-8',
-      session_no: 9, date: '2026-10-27', session_range: null, weight: 30,
-      tier: 'sourced', anchors: [{ source_text: 'Midterm 30%', page: 1, section: 'Grading', char_offset: null }],
-      verification: { score: 0.85, checks: { anchor_exists: true, number_match: true, session_date_consistent: true, llm_judge: { pass: true, reason: 'Grade weight matches' } }, auto_rejected: false },
-      approved: true, approved_at: new Date().toISOString(), approval_note: null, created_at: new Date().toISOString(),
-    },
-    {
-      id: randomUUID(), course_id: course.id, model_version: 1,
-      kind: 'policy', title: 'Attendance Policy', detail: 'Attendance is mandatory. More than 3 unexcused absences will result in a grade penalty.',
-      session_no: null, date: null, session_range: null, weight: null,
-      tier: 'sourced', anchors: [{ source_text: 'Attendance is mandatory', page: 1, section: 'Policies', char_offset: null }],
-      verification: { score: 0.8, checks: { anchor_exists: true, number_match: true, session_date_consistent: true, llm_judge: { pass: true, reason: 'Direct quote' } }, auto_rejected: false },
-      approved: true, approved_at: new Date().toISOString(), approval_note: null, created_at: new Date().toISOString(),
-    },
-  ];
-  modelItems.set(course.id, items);
+// Resolve "Session N in term T" → date, per institution calendar
+export async function resolveSessionDate(instId: string, term: string, sessionNo: number): Promise<string | null> {
+  const all = await getSessions(instId, term);
+  const s = all.find((x) => x.session_no === sessionNo);
+  return s?.date_start ?? null;
 }
 
 // ─── Supabase client (lazy) ───
@@ -96,28 +104,22 @@ function supabase() {
 
 // ─── Institutions ───
 export async function listInstitutions(): Promise<Institution[]> {
-  if (DEMO) return Array.from(institutions.values());
+  if (DEMO) return Array.from(stores().institutions.values());
   const { data } = await supabase().from('institutions').select('*');
   return data ?? [];
 }
 
 // ─── Sessions ───
 export async function getSessions(instId: string, term: string): Promise<Session[]> {
-  if (DEMO) return sessions.get(`${instId}:${term}`) ?? [];
+  if (DEMO) return stores().sessions.get(`${instId}:${term}`) ?? [];
   const { data } = await supabase().from('sessions').select('*').eq('inst_id', instId).eq('term', term).order('session_no');
   return data ?? [];
-}
-
-export async function resolveSessionDate(instId: string, term: string, sessionNo: number): Promise<string | null> {
-  const all = await getSessions(instId, term);
-  const s = all.find((x) => x.session_no === sessionNo);
-  return s?.date_start ?? null;
 }
 
 // ─── Courses ───
 export async function listCourses(instId?: string): Promise<Course[]> {
   if (DEMO) {
-    const all = Array.from(courses.values());
+    const all = Array.from(stores().courses.values());
     return instId ? all.filter((c) => c.inst_id === instId) : all;
   }
   let q = supabase().from('courses').select('*');
@@ -127,7 +129,7 @@ export async function listCourses(instId?: string): Promise<Course[]> {
 }
 
 export async function getCourse(id: string): Promise<Course | null> {
-  if (DEMO) return courses.get(id) ?? null;
+  if (DEMO) return stores().courses.get(id) ?? null;
   const { data } = await supabase().from('courses').select('*').eq('id', id).single();
   return data;
 }
@@ -135,7 +137,7 @@ export async function getCourse(id: string): Promise<Course | null> {
 export async function createCourse(input: { inst_id: string; code: string; title: string; offering: string }): Promise<Course> {
   if (DEMO) {
     const c: Course = { id: randomUUID(), ...input, status: 'active', created_at: new Date().toISOString() };
-    courses.set(c.id, c);
+    stores().courses.set(c.id, c);
     return c;
   }
   const { data } = await supabase().from('courses').insert(input).select().single();
@@ -145,13 +147,42 @@ export async function createCourse(input: { inst_id: string; code: string; title
 // ─── Model Items ───
 export async function listModelItems(courseId: string, version?: number): Promise<ModelItem[]> {
   if (DEMO) {
-    const items = modelItems.get(courseId) ?? [];
+    const items = stores().modelItems.get(courseId) ?? [];
     return version ? items.filter((i) => i.model_version === version) : items;
   }
   let q = supabase().from('model_items').select('*').eq('course_id', courseId);
   if (version) q = q.eq('model_version', version);
   const { data } = await q;
   return data ?? [];
+}
+
+// Persist extracted (already-verified) items for a course
+export async function saveModelItems(courseId: string, items: ModelItem[]): Promise<void> {
+  if (DEMO) {
+    stores().modelItems.set(courseId, items);
+    return;
+  }
+  if (items.length === 0) return;
+  const { error } = await supabase().from('model_items').upsert(items, { onConflict: 'id' });
+  if (error) throw new Error(`saveModelItems: ${error.message}`);
+}
+
+// Approval gate: flip one item's approved flag (the single source of truth)
+export async function setApproval(courseId: string, itemId: string, approved: boolean, note: string | null = null): Promise<void> {
+  if (DEMO) {
+    const items = stores().modelItems.get(courseId) ?? [];
+    const item = items.find((i) => i.id === itemId);
+    if (!item) throw new Error('Item not found');
+    item.approved = approved;
+    item.approved_at = approved ? new Date().toISOString() : null;
+    item.approval_note = note;
+    return;
+  }
+  const { error } = await supabase()
+    .from('model_items')
+    .update({ approved, approved_at: approved ? new Date().toISOString() : null, approval_note: note })
+    .eq('id', itemId);
+  if (error) throw new Error(`setApproval: ${error.message}`);
 }
 
 export async function getModelItemsForBrief(courseId: string, upcomingDays: number): Promise<ModelItem[]> {
@@ -169,7 +200,7 @@ export async function getModelItemsForBrief(courseId: string, upcomingDays: numb
 export async function getGradeBudget(courseId: string) {
   const items = await listModelItems(courseId);
   const components = items.filter((i) => i.kind === 'grade_component' && i.approved);
-  const grades = gradeEntries.get(courseId) ?? [];
+  const grades = DEMO ? (stores().gradeEntries.get(courseId) ?? []) : (await listGradeEntries(courseId));
   const totalWeight = components.reduce((s, c) => s + (c.weight ?? 0), 0);
 
   const budgetComponents = components.map((c) => {
@@ -191,7 +222,7 @@ export async function getGradeBudget(courseId: string) {
 
 // ─── Grade Entries ───
 export async function listGradeEntries(courseId: string): Promise<GradeEntry[]> {
-  if (DEMO) return gradeEntries.get(courseId) ?? [];
+  if (DEMO) return stores().gradeEntries.get(courseId) ?? [];
   const { data } = await supabase().from('grade_entries').select('*').eq('course_id', courseId);
   return data ?? [];
 }
@@ -202,9 +233,9 @@ export async function addGradeEntry(input: { course_id: string; component_id: st
       id: randomUUID(), course_id: input.course_id, component_id: input.component_id,
       score: input.score, max_score: input.max_score ?? 100, added_at: new Date().toISOString(),
     };
-    const list = gradeEntries.get(input.course_id) ?? [];
+    const list = stores().gradeEntries.get(input.course_id) ?? [];
     list.push(e);
-    gradeEntries.set(input.course_id, list);
+    stores().gradeEntries.set(input.course_id, list);
     return e;
   }
   const { data } = await supabase().from('grade_entries').insert(input).select().single();
@@ -213,7 +244,7 @@ export async function addGradeEntry(input: { course_id: string; component_id: st
 
 // ─── Briefings ───
 export async function listBriefings(courseId: string): Promise<Briefing[]> {
-  if (DEMO) return briefings.get(courseId) ?? [];
+  if (DEMO) return stores().briefings.get(courseId) ?? [];
   const { data } = await supabase().from('briefings').select('*').eq('course_id', courseId).order('created_at', { ascending: false });
   return data ?? [];
 }
@@ -225,9 +256,9 @@ export async function storeBriefing(input: { user_id: string; course_id?: string
       kind: input.kind as Briefing['kind'], content: input.content, delivered_via: (input.delivered_via as Briefing['delivered_via']) ?? null,
       delivered_at: new Date().toISOString(), created_at: new Date().toISOString(),
     };
-    const list = briefings.get(input.course_id ?? '') ?? [];
+    const list = stores().briefings.get(input.course_id ?? '') ?? [];
     list.push(b);
-    briefings.set(input.course_id ?? '', list);
+    stores().briefings.set(input.course_id ?? '', list);
     return b;
   }
   const { data } = await supabase().from('briefings').insert(input).select().single();
@@ -242,7 +273,7 @@ export async function createIngestJob(syllabusId: string, stage: string): Promis
       status: 'pending', log_json: {}, error: null,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
-    ingestJobs.set(j.id, j);
+    stores().ingestJobs.set(j.id, j);
     return j;
   }
   const { data } = await supabase().from('ingest_jobs').insert({ syllabus_id: syllabusId, stage }).select().single();
@@ -250,7 +281,7 @@ export async function createIngestJob(syllabusId: string, stage: string): Promis
 }
 
 export async function getIngestJob(id: string): Promise<IngestJob | null> {
-  if (DEMO) return ingestJobs.get(id) ?? null;
+  if (DEMO) return stores().ingestJobs.get(id) ?? null;
   const { data } = await supabase().from('ingest_jobs').select('*').eq('id', id).single();
   return data;
 }

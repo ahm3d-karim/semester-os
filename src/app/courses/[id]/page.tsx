@@ -1,5 +1,7 @@
 import { getCourse, listModelItems, getGradeBudget } from '@/lib/db';
 import type { ModelItem } from '@/lib/types';
+import Link from 'next/link';
+import { UploadSyllabus } from './UploadSyllabus';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,13 +21,24 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{course.code}</span>
-          <h1 className="text-2xl font-bold">{course.title}</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{course.code}</span>
+            <h1 className="text-2xl font-bold">{course.title}</h1>
+          </div>
+          <p className="text-gray-500">{course.offering}</p>
         </div>
-        <p className="text-gray-500">{course.offering}</p>
+        <Link
+          href={`/courses/${course.id}/approve`}
+          className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-gray-400 transition-colors"
+        >
+          Review items
+        </Link>
       </div>
+
+      {/* Upload */}
+      <UploadSyllabus courseId={course.id} />
 
       {/* Grade Budget */}
       <div className="border border-gray-200 rounded-xl p-5">
