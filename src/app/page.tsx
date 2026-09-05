@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { IS_DEMO } from '@/lib/db';
-import { listCourses } from '@/lib/db';
+import { IS_DEMO, listCourses } from '@/lib/db';
+import { EmptyState } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,84 +11,84 @@ export default async function Home() {
     <div className="space-y-10">
       {IS_DEMO && (
         <div className="border border-amber-200 bg-amber-50 rounded-xl px-4 py-3 text-sm text-amber-800">
-          <span className="font-medium">Demo mode:</span>{' '}
-          data is stored in memory and resets when the server restarts. Add a
-          Supabase URL + service key in the Vercel/Next env settings for
-          persistent storage.
+          <span className="font-medium">Demo mode:</span> data lives in memory
+          and resets when the server restarts. Add a Supabase URL and service
+          key in your hosting settings for permanent storage.
         </div>
       )}
 
-      {/* Hero */}
-      <div className="pt-6">
-        <h1 className="text-3xl font-bold tracking-tight">
+      {/* Hero: one statement, one action */}
+      <div className="pt-8 pb-2 max-w-2xl">
+        <h1 className="text-4xl font-semibold tracking-tight text-stone-900">
           Your semester, verified.
         </h1>
-        <p className="text-gray-500 mt-2 max-w-xl">
-          Upload a course syllabus. Semester OS extracts every deadline, grade
-          weight, and policy, checks each one against its source, and shows you
-          the result for approval before anything enters your plan.
+        <p className="text-stone-600 mt-3 text-lg leading-relaxed">
+          Upload a syllabus. Every deadline, grade weight, and policy is
+          extracted, checked against the document, and shown to you with its
+          evidence. Only what you approve enters your plan.
         </p>
       </div>
 
-      {/* How it works */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-          How it works
-        </h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[
-            {
-              step: '1',
-              title: 'Create a course',
-              body: 'Name it and pick the term. Nothing is auto-filled from templates.',
-            },
-            {
-              step: '2',
-              title: 'Upload the syllabus',
-              body: 'PDF or DOCX. Items are extracted with source anchors, then verified and scored.',
-            },
-            {
-              step: '3',
-              title: 'Review and approve',
-              body: 'You check each extracted item against its cited source. Only approved items enter your timeline.',
-            },
-          ].map((c) => (
-            <div key={c.step} className="border border-gray-200 rounded-xl p-5">
-              <div className="text-xs font-mono text-blue-600 mb-2">Step {c.step}</div>
-              <div className="font-semibold">{c.title}</div>
-              <p className="text-sm text-gray-500 mt-1">{c.body}</p>
-            </div>
-          ))}
-        </div>
+      {/* The three-step flow, as the product actually works */}
+      <div className="border-t border-stone-200 pt-8">
+        <ol className="grid sm:grid-cols-3 gap-6">
+          <li>
+            <div className="font-mono text-sm text-emerald-700 mb-2">01</div>
+            <h2 className="font-semibold">Create a course</h2>
+            <p className="text-sm text-stone-600 mt-1">
+              Name and term. It starts empty on purpose.
+            </p>
+          </li>
+          <li>
+            <div className="font-mono text-sm text-emerald-700 mb-2">02</div>
+            <h2 className="font-semibold">Upload the syllabus</h2>
+            <p className="text-sm text-stone-600 mt-1">
+              PDF or DOCX. Extraction shows its work: every item carries the
+              quote it came from.
+            </p>
+          </li>
+          <li>
+            <div className="font-mono text-sm text-emerald-700 mb-2">03</div>
+            <h2 className="font-semibold">You approve</h2>
+            <p className="text-sm text-stone-600 mt-1">
+              Check each item against its source quote. Approved items build
+              your timeline and weekly digest.
+            </p>
+          </li>
+        </ol>
       </div>
 
-      {/* Quick actions */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-          Jump in
-        </h2>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Link
-            href="/courses/new"
-            className="border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-sm transition-all"
-          >
-            <div className="font-semibold">+ Create a course</div>
-            <p className="text-sm text-gray-500 mt-1">
-              {courses.length === 0
-                ? 'No courses yet — start here.'
-                : `${courses.length} course${courses.length !== 1 ? 's' : ''} so far.`}
-            </p>
-          </Link>
-          <Link
-            href="/today"
-            className="border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-sm transition-all"
-          >
-            <div className="font-semibold">Today&apos;s view</div>
-            <p className="text-sm text-gray-500 mt-1">
-              Deadlines for the next 7 days and grade budgets across courses.
-            </p>
-          </Link>
-        </div>
+      {/* Actions: content-driven, not a template CTA row */}
+      <div className="space-y-3">
+        {courses.length === 0 ? (
+          <EmptyState
+            title="No courses yet"
+            body="Your courses list starts empty. Create the first one, upload its syllabus, and the plan builds itself from what the document actually says."
+            action={{ href: '/courses/new', label: 'Create your first course' }}
+          />
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Link
+              href="/courses"
+              className="border border-stone-200 rounded-xl p-5 hover:border-emerald-600 hover:bg-stone-50 transition-colors"
+            >
+              <div className="font-semibold">Your courses</div>
+              <p className="text-sm text-stone-600 mt-1">
+                {courses.length} course{courses.length !== 1 ? 's' : ''} this
+                term.
+              </p>
+            </Link>
+            <Link
+              href="/today"
+              className="border border-stone-200 rounded-xl p-5 hover:border-emerald-600 hover:bg-stone-50 transition-colors"
+            >
+              <div className="font-semibold">Today</div>
+              <p className="text-sm text-stone-600 mt-1">
+                Deadlines for the next 7 days across all courses.
+              </p>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

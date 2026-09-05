@@ -19,11 +19,15 @@ export function ApproveActions({ courseId, itemIds, action, label, variant }: Ap
     setLoading(true);
     try {
       for (const itemId of itemIds) {
-        await fetch('/api/approve', {
+        const res = await fetch('/api/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ courseId, itemId, action }),
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          console.error('Approve failed:', data.error ?? res.status);
+        }
       }
       router.refresh();
     } catch (err) {
@@ -38,7 +42,7 @@ export function ApproveActions({ courseId, itemIds, action, label, variant }: Ap
       <button
         onClick={handleAction}
         disabled={loading}
-        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+        className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0"
       >
         {loading ? 'Saving...' : label}
       </button>
@@ -49,13 +53,13 @@ export function ApproveActions({ courseId, itemIds, action, label, variant }: Ap
     <button
       onClick={handleAction}
       disabled={loading}
-      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 ${
+      className={`text-xs px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 ${
         action === 'approve'
-          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-          : 'bg-red-100 text-red-700 hover:bg-red-200'
+          ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+          : 'border border-stone-300 text-stone-700 hover:bg-stone-100'
       }`}
     >
-      {loading ? '...' : action === 'approve' ? '✓ Approve' : '✗ Reject'}
+      {loading ? '...' : label}
     </button>
   );
 }

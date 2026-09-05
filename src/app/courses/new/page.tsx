@@ -41,13 +41,13 @@ export default function NewCoursePage() {
   return (
     <div className="max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Create a course</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          Starts empty. The course fills up when you upload its syllabus.
+        <h1 className="text-2xl font-semibold tracking-tight">Create a course</h1>
+        <p className="text-stone-600 mt-1 text-sm">
+          It starts empty. The course fills up when you upload its syllabus.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="border border-gray-200 rounded-xl p-5 space-y-4">
+      <form onSubmit={handleSubmit} className="border border-stone-200 rounded-xl p-5 space-y-4">
         <div>
           <label htmlFor="code" className="block text-sm font-medium mb-1">
             Course code
@@ -58,7 +58,7 @@ export default function NewCoursePage() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="e.g. ECON 210"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:border-emerald-600"
           />
         </div>
         <div>
@@ -71,7 +71,7 @@ export default function NewCoursePage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Intermediate Microeconomics"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:border-emerald-600"
           />
         </div>
         <div>
@@ -84,16 +84,16 @@ export default function NewCoursePage() {
             value={offering}
             onChange={(e) => setOffering(e.target.value)}
             placeholder="Fall 2026"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:border-emerald-600"
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-700">{error}</p>}
 
         <button
           type="submit"
           disabled={submitting}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           {submitting ? 'Creating...' : 'Create course'}
         </button>

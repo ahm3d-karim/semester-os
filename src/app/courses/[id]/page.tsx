@@ -1,6 +1,7 @@
 import { getCourse, listModelItems, getGradeBudget } from '@/lib/db';
 import type { ModelItem } from '@/lib/types';
 import Link from 'next/link';
+import { EmptyState, ScoreBar, KindChip, TierChip } from '@/components/ui';
 import { UploadSyllabus } from './UploadSyllabus';
 
 export const dynamic = 'force-dynamic';
@@ -8,124 +9,159 @@ export const dynamic = 'force-dynamic';
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const course = await getCourse(id);
-  if (!course) return <div className="py-16 text-center text-gray-400">Course not found</div>;
+  if (!course) {
+    return (
+      <EmptyState
+        title="Course not found"
+        body="This course may have been removed, or the link is wrong."
+        action={{ href: '/courses', label: 'Back to courses' }}
+      />
+    );
+  }
 
   const items: ModelItem[] = await listModelItems(id);
   const budget = await getGradeBudget(id);
 
-  const deadlines = items.filter((i) => i.kind === 'deadline' && i.approved).sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
+  const deadlines = items
+    .filter((i) => i.kind === 'deadline' && i.approved && i.date)
+    .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
   const grades = items.filter((i) => i.kind === 'grade_component' && i.approved);
   const policies = items.filter((i) => i.kind === 'policy' && i.approved);
-  const milestones = items.filter((i) => i.kind === 'milestone' && i.approved);
+  const pending = items.filter((i) => !i.approved && !i.verification.auto_rejected);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{course.code}</span>
-            <h1 className="text-2xl font-bold">{course.title}</h1>
+          <div className="flex items-baseline gap-3">
+            <span className="font-mono text-sm text-emerald-700">{course.code}</span>
+            <h1 className="text-2xl font-semibold tracking-tight">{course.title}</h1>
           </div>
-          <p className="text-gray-500">{course.offering}</p>
+          <p className="text-stone-600 text-sm mt-0.5">{course.offering}</p>
         </div>
         <Link
           href={`/courses/${course.id}/approve`}
-          className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-gray-400 transition-colors"
+          className="border border-stone-300 text-stone-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-stone-500 transition-colors"
         >
-          Review items
+          Review items{pending.length > 0 ? ` (${pending.length})` : ''}
         </Link>
       </div>
 
       {/* Upload */}
       <UploadSyllabus courseId={course.id} />
 
-      {/* Grade Budget */}
-      <div className="border border-gray-200 rounded-xl p-5">
-        <h2 className="text-lg font-semibold mb-3">Grade Budget</h2>
-        <div className="flex items-center gap-4 mb-4">
-          <span className={`text-2xl font-bold ${budget.status === 'balanced' ? 'text-green-600' : budget.status === 'over' ? 'text-red-600' : 'text-amber-600'}`}>
-            {budget.total_weight}%
-          </span>
-          <span className="text-sm text-gray-500">of {budget.items_count} components graded</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${budget.status === 'balanced' ? 'bg-green-100 text-green-700' : budget.status === 'over' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-            {budget.status}
-          </span>
-        </div>
-        <div className="space-y-2">
-          {budget.components.map((comp) => (
-            <div key={comp.item_id} className="flex items-center justify-between text-sm">
-              <span>{comp.title}</span>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-gray-600">{comp.weight}%</span>
-                {comp.scored !== null && (
-                  <span className="font-mono text-blue-600">{comp.scored}/{comp.weight}</span>
-                )}
+      {items.length === 0 ? (
+        <EmptyState
+          title="No syllabus data yet"
+          body="Upload the syllabus above. Extracted items appear once checked, and you approve what enters the plan."
+        />
+      ) : (
+        <>
+          {/* Grade budget */}
+          <div className="border border-stone-200 rounded-xl p-5">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
+              <h2 className="text-base font-semibold">Grade budget</h2>
+              <span
+                className={`font-mono text-xl font-semibold ${
+                  budget.status === 'balanced' ? 'text-emerald-700' : budget.status === 'over' ? 'text-red-700' : 'text-amber-700'
+                }`}
+              >
+                {budget.total_weight}%
+              </span>
+              <span className="text-sm text-stone-600">
+                {budget.status === 'balanced'
+                  ? 'weights sum to 100'
+                  : budget.status === 'over'
+                    ? `over by ${budget.total_weight - 100}`
+                    : `under by ${100 - budget.total_weight}`}
+              </span>
+            </div>
+            {budget.components.length > 0 ? (
+              <div className="space-y-1.5">
+                {budget.components.map((comp) => (
+                  <div key={comp.item_id} className="flex items-center justify-between text-sm py-1 border-t border-stone-100 first:border-t-0">
+                    <span>{comp.title}</span>
+                    <div className="flex items-center gap-4">
+                      {comp.scored !== null && (
+                        <span className="font-mono text-emerald-700 text-xs">{comp.scored} scored</span>
+                      )}
+                      <span className="font-mono text-stone-600">{comp.weight}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-stone-600">No grade components approved yet. Approve them on the review page.</p>
+            )}
+            {grades.length === 0 && budget.components.length === 0 && (
+              <p className="text-xs text-stone-600 mt-2">Add your scores as coursework comes back to track the budget.</p>
+            )}
+          </div>
+
+          {/* Timeline: verified items only */}
+          {deadlines.length > 0 && (
+            <div className="border border-stone-200 rounded-xl p-5">
+              <h2 className="text-base font-semibold mb-4">Timeline</h2>
+              <ol className="space-y-4">
+                {deadlines.map((item) => (
+                  <li key={item.id} className="flex gap-4">
+                    <div className="text-right shrink-0 w-20">
+                      <div className="font-mono text-sm text-stone-900">S{item.session_no}</div>
+                      <div className="font-mono text-xs text-stone-600">{item.date}</div>
+                    </div>
+                    <div className="flex-1 border-l-2 border-emerald-600/30 pl-4 pb-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{item.title}</span>
+                        {item.weight !== null && <span className="font-mono text-xs text-stone-600">{item.weight}%</span>}
+                      </div>
+                      <p className="text-sm text-stone-600">{item.detail}</p>
+                      <ScoreBar score={item.verification.score} className="mt-1.5" />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {/* Policies */}
+          {policies.length > 0 && (
+            <div className="border border-stone-200 rounded-xl p-5">
+              <h2 className="text-base font-semibold mb-3">Policies</h2>
+              <div className="space-y-3">
+                {policies.map((item) => (
+                  <div key={item.id} className="text-sm">
+                    <div className="font-medium">{item.title}</div>
+                    <p className="text-stone-600 mt-0.5">{item.detail}</p>
+                    <ScoreBar score={item.verification.score} className="mt-1.5" />
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+          )}
 
-      {/* Timeline */}
-      {deadlines.length > 0 && (
-        <div className="border border-gray-200 rounded-xl p-5">
-          <h2 className="text-lg font-semibold mb-3">Timeline</h2>
-          <div className="space-y-3">
-            {deadlines.map((item) => (
-              <div key={item.id} className="flex items-start gap-4">
-                <div className="text-right min-w-[80px]">
-                  <div className="text-sm font-mono text-gray-500">S{item.session_no}</div>
-                  <div className="text-xs text-gray-400">{item.date}</div>
+          {/* Waiting for your decision */}
+          {pending.length > 0 && (
+            <div className="border border-amber-200 bg-amber-50 rounded-xl p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold text-amber-900">
+                    {pending.length} item{pending.length !== 1 ? 's' : ''} waiting for your decision
+                  </h2>
+                  <p className="text-sm text-amber-800 mt-0.5">
+                    They are not in your timeline yet.
+                  </p>
                 </div>
-                <div className="flex-1 border-l-2 border-blue-200 pl-4 pb-2">
-                  <div className="font-medium">{item.title}</div>
-                  <div className="text-sm text-gray-500">{item.detail}</div>
-                  {item.weight && <div className="text-xs text-blue-600 mt-1">{item.weight}%</div>}
-                </div>
+                <Link
+                  href={`/courses/${course.id}/approve`}
+                  className="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shrink-0"
+                >
+                  Review now
+                </Link>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Policies */}
-      {policies.length > 0 && (
-        <div className="border border-gray-200 rounded-xl p-5">
-          <h2 className="text-lg font-semibold mb-3">Policies</h2>
-          <div className="space-y-3">
-            {policies.map((item) => (
-              <div key={item.id} className="text-sm">
-                <div className="font-medium">{item.title}</div>
-                <div className="text-gray-600 mt-1">{item.detail}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Milestones */}
-      {milestones.length > 0 && (
-        <div className="border border-gray-200 rounded-xl p-5">
-          <h2 className="text-lg font-semibold mb-3">Milestones</h2>
-          <div className="space-y-2">
-            {milestones.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 text-sm">
-                <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">S{item.session_no}</span>
-                <span>{item.title}</span>
-                <span className="text-gray-400">{item.date}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {items.length === 0 && (
-        <div className="text-center py-16 text-gray-400 border border-dashed border-gray-300 rounded-xl">
-          <p>No syllabus data yet</p>
-          <p className="text-sm mt-2">Upload a syllabus to populate this course</p>
-        </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

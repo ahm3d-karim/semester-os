@@ -1,26 +1,42 @@
 @import "tailwindcss";
 
+/* Semester OS design tokens — see DESIGN.md
+   Light-only by decision (DESIGN.md: document-review surface, no half-broken dark theme) */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --surface: #fafaf9;        /* stone-50 */
+  --foreground: #1c1917;     /* stone-900 */
+  --muted: #57534e;          /* stone-600, 7.0:1 on white */
+  --faint: #78716c;          /* stone-500, 4.0:1 — lowest text tone allowed */
+  --border-strong: #78716c;  /* interactive boundaries, 4.0:1 (WCAG 1.4.11) */
+  --divider: #e7e5e4;        /* stone-200, decorative list separators only */
+  --accent: #047857;         /* emerald-700 — text/buttons, 5.8:1 on white */
+  --accent-fill: #059669;    /* emerald-600 — bars/dots only, 3.6:1 non-text */
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--border-strong);
+  --color-divider: var(--divider);
+  --color-accent: var(--accent);
+  --color-accent-fill: var(--accent-fill);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* R-32: visible focus indicator everywhere, keyboard-first */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
