@@ -43,3 +43,7 @@ next-env.d.ts
 
 # registrar catalog data (user-provided, not redistributed)
 data/
+
+# python bytecode
+__pycache__/
+*.pyc
