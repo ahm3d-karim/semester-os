@@ -2,7 +2,17 @@ import { getCourse, listModelItems, getGradeBudget } from '@/lib/db';
 import type { ModelItem } from '@/lib/types';
 import Link from 'next/link';
 import { EmptyState, ScoreBar, KindChip, TierChip } from '@/components/ui';
+import { findCourse, findFinalExam } from '@/lib/catalog';
 import { UploadSyllabus } from './UploadSyllabus';
+
+const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function to12(t: string): string {
+  const [h, m] = t.split(':').map(Number);
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${hh}:${String(m).padStart(2, '0')}${ap}`;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +57,32 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           Review items{pending.length > 0 ? ` (${pending.length})` : ''}
         </Link>
       </div>
+
+      {/* Section schedule + final exam (registrar catalog, auto-filled) */}
+      {course.section_code && (() => {
+        const cat = findCourse(course.code);
+        if (!cat) return null;
+        const sec = cat.sections.find((s) => s.code === course.section_code);
+        if (!sec) return null;
+        const exam = findFinalExam(cat);
+        return (
+          <div className="border border-emerald-200 bg-emerald-50 rounded-xl p-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <span className="font-mono text-xs text-emerald-800">{sec.code}</span>
+            <span className="text-sm text-stone-800">
+              {sec.days.map((d) => DAY_SHORT[d]).join(' ')} {to12(sec.start)}-{to12(sec.end)}
+            </span>
+            <span className="text-sm text-stone-600">{sec.building} {sec.room}</span>
+            <span className="text-sm text-stone-600">{sec.instructor}</span>
+            {exam && (
+              <span className="text-sm text-stone-800">
+                Final: <span className="font-mono text-xs">{exam.date}</span> {exam.time.slice(0, 2)}:{exam.time.slice(2, 4)}
+                {exam.source === 'combined' ? ' (combined)' : ''}
+              </span>
+            )}
+            <span className="text-xs text-emerald-800 ml-auto">from the LUMS schedule</span>
+          </div>
+        );
+      })()}
 
       {/* Upload */}
       <UploadSyllabus courseId={course.id} />

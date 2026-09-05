@@ -41,6 +41,7 @@ export interface Course {
   title: string;
   offering: string | null;
   status: 'active' | 'archived';
+  section_code: string | null;  // chosen LUMS section ('LEC 3'), null for manual courses
   created_at: string;
 }
 

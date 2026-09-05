@@ -134,9 +134,9 @@ export async function getCourse(id: string): Promise<Course | null> {
   return data;
 }
 
-export async function createCourse(input: { inst_id: string; code: string; title: string; offering: string }): Promise<Course> {
+export async function createCourse(input: { inst_id: string; code: string; title: string; offering: string; section_code?: string | null }): Promise<Course> {
   if (DEMO) {
-    const c: Course = { id: randomUUID(), ...input, status: 'active', created_at: new Date().toISOString() };
+    const c: Course = { id: randomUUID(), section_code: input.section_code ?? null, ...input, status: 'active', created_at: new Date().toISOString() };
     stores().courses.set(c.id, c);
     return c;
   }
